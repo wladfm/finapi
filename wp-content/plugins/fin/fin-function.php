@@ -224,6 +224,10 @@ core::init_dir('query');
 new CurrencyQuery('currency_query');
 
 // Cron
-if( !wp_next_scheduled('hook_fin') )
-    wp_schedule_event(time(), 'hourly', 'hook_fin');
+add_action( 'wp', 'active_hook_scheduled' );
+function active_hook_scheduled() {
+    if( ! wp_next_scheduled( 'hook_fin' ) ) {
+        wp_schedule_event( time(), 'hourly', 'hook_fin');
+    }
+}
 add_action('hook_fin', 'scheduled_fin');
