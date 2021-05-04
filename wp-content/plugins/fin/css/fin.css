@@ -1,0 +1,17 @@
+.c-select {
+    width: 100%;
+    padding: 1.5rem 1.8rem;
+    font-size: 1.6rem;
+}
+
+.row {
+    padding: 10px 0;
+}
+
+.count-day {
+    cursor: pointer;
+}
+
+.day-active {
+    background-color: #00d082;
+}
