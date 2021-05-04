@@ -191,23 +191,6 @@ function fin_register_widgets() {
     register_widget( 'Fin_Widget' );
 }
 
-/**
- * Функция cron для обновления курсов
- */
-function scheduled_fin()
-{
-    // Инициализация ядра
-    core::init_core();
-    // Инициализация каталога cron
-    core::init_dir('scheduled');
-
-    // Запускаем
-    $cron = new SheduledManagerFin();
-    if(null !== ($msg = $cron->start())) {
-        logErrors::set('errors', 'Ошибка выполения cron-задачи обновления курса валют: ' . $msg);
-    }
-}
-
 function js_variables(){
     $variables = array (
         'ajax_url' => admin_url('admin-ajax.php')
@@ -224,10 +207,37 @@ core::init_dir('query');
 new CurrencyQuery('currency_query');
 
 // Cron
-add_action( 'wp', 'active_hook_scheduled' );
-function active_hook_scheduled() {
-    if( ! wp_next_scheduled( 'hook_fin' ) ) {
-        wp_schedule_event( time(), 'hourly', 'hook_fin');
+register_activation_hook(__FILE__, 'widget_activation_scheduled');
+function widget_activation_scheduled() {
+    wp_clear_scheduled_hook( 'active_hook_scheduled' );
+    wp_schedule_event( strtotime(current_time("Y-m-d H:i:s")), 'hourly', 'active_hook_scheduled');
+}
+
+if( defined('DOING_CRON') && DOING_CRON ){
+    add_action('active_hook_scheduled', 'scheduled_fin');
+    /**
+     * Функция cron для обновления курсов
+     */
+    function scheduled_fin()
+    {
+        try {
+            // Инициализация ядра
+            core::init_core();
+            // Инициализация каталога cron
+            core::init_dir('scheduled');
+
+            // Запускаем
+            $cron = new SheduledManagerFin();
+            if (null !== ($msg = $cron->start())) {
+                logErrors::set('errors', 'Ошибка выполения cron-задачи обновления курса валют: ' . $msg);
+            }
+        } catch (Exception $ex) {
+            logErrors::set('ui', 'Файл: ' . $ex->getFile() . '. ' . $ex->getCode() . ": " . $ex->getMessage() . ". Строка: " . $ex->getLine());
+        }
     }
 }
-add_action('hook_fin', 'scheduled_fin');
+
+register_deactivation_hook( __FILE__, 'widget_deactivation_scheduled');
+function widget_deactivation_scheduled() {
+    wp_clear_scheduled_hook('active_hook_scheduled');
+}
