@@ -197,6 +197,40 @@ function js_variables(){
     );
     echo '<script type="text/javascript"> window.wp_data = ' . json_encode($variables) . '; </script>';
 }
+
+/**
+ * Функция cron для обновления курсов
+ */
+function scheduled_fin()
+{
+    try {
+        // Запускаем
+        $cron = new SheduledManagerFin();
+        if (null !== ($msg = $cron->start())) {
+            logErrors::set('errors', 'Ошибка выполения cron-задачи обновления курса валют: ' . $msg);
+        }
+    } catch (Exception $ex) {
+        logErrors::set('ui', 'Файл: ' . $ex->getFile() . '. ' . $ex->getCode() . ": " . $ex->getMessage() . ". Строка: " . $ex->getLine());
+    }
+}
+
+/**
+ * Активатор хука для cron
+ */
+function widget_activation_scheduled() {
+    wp_clear_scheduled_hook( 'active_hook_scheduled' );
+    if (! wp_next_scheduled ( 'active_hook_scheduled' )) {
+        wp_schedule_event(time(), 'hourly', 'active_hook_scheduled');
+    }
+}
+
+/**
+ * Деактиватор хука для cron
+ */
+function widget_deactivation_scheduled() {
+    wp_clear_scheduled_hook('active_hook_scheduled');
+}
+
 add_action('wp_head','js_variables');
 
 // Init widget
@@ -207,37 +241,6 @@ core::init_dir('query');
 new CurrencyQuery('currency_query');
 
 // Cron
-register_activation_hook(__FILE__, 'widget_activation_scheduled');
-function widget_activation_scheduled() {
-    wp_clear_scheduled_hook( 'active_hook_scheduled' );
-    wp_schedule_event( strtotime(current_time("Y-m-d H:i:s")), 'hourly', 'active_hook_scheduled');
-}
-
-if( defined('DOING_CRON') && DOING_CRON ){
-    add_action('active_hook_scheduled', 'scheduled_fin');
-    /**
-     * Функция cron для обновления курсов
-     */
-    function scheduled_fin()
-    {
-        try {
-            // Инициализация ядра
-            core::init_core();
-            // Инициализация каталога cron
-            core::init_dir('scheduled');
-
-            // Запускаем
-            $cron = new SheduledManagerFin();
-            if (null !== ($msg = $cron->start())) {
-                logErrors::set('errors', 'Ошибка выполения cron-задачи обновления курса валют: ' . $msg);
-            }
-        } catch (Exception $ex) {
-            logErrors::set('ui', 'Файл: ' . $ex->getFile() . '. ' . $ex->getCode() . ": " . $ex->getMessage() . ". Строка: " . $ex->getLine());
-        }
-    }
-}
-
-register_deactivation_hook( __FILE__, 'widget_deactivation_scheduled');
-function widget_deactivation_scheduled() {
-    wp_clear_scheduled_hook('active_hook_scheduled');
-}
+register_activation_hook(__FILE__, 'widget_activation_scheduled'); // активация хука
+add_action('active_hook_scheduled', 'scheduled_fin'); // выполнение хука
+register_deactivation_hook( __FILE__, 'widget_deactivation_scheduled'); // деактивация хука
